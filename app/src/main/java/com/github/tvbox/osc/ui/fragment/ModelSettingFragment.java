@@ -173,6 +173,13 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 dialog.show();
             }
         });
+        findViewById(R.id.llCrashLog).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                showCrashLogs();
+            }
+        });
         findViewById(R.id.llWp).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -729,6 +736,35 @@ public class ModelSettingFragment extends BaseLazyFragment {
 
         findViewById(R.id.llIjkCachePlay).setOnClickListener((view -> onClickIjkCachePlay(view)));
         findViewById(R.id.llClearCache).setOnClickListener((view -> onClickClearCache(view)));
+    }
+
+    void showCrashLogs() {
+        try {
+            java.io.File crashDir = new java.io.File(mActivity.getExternalCacheDir(), "crash_logs");
+            if (!crashDir.exists() || crashDir.listFiles() == null || crashDir.listFiles().length == 0) {
+                Toast.makeText(mActivity, "暂无崩溃日志", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            java.io.File[] files = crashDir.listFiles();
+            java.util.Arrays.sort(files, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Math.min(files.length, 10); i++) {
+                sb.append(files[i].getName()).append("\n");
+            }
+            sb.append("\n... 共 ").append(files.length).append(" 个日志文件");
+            sb.append("\n\n日志路径: ").append(crashDir.getAbsolutePath());
+            new androidx.appcompat.app.AlertDialog.Builder(mActivity)
+                    .setTitle("崩溃日志 (" + files.length + ")")
+                    .setMessage(sb.toString())
+                    .setPositiveButton("清空全部", (d, w) -> {
+                        for (java.io.File f : crashDir.listFiles()) f.delete();
+                        Toast.makeText(mActivity, "已清空", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("关闭", null)
+                    .show();
+        } catch (Exception e) {
+            Toast.makeText(mActivity, "读取失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void restartAppAfterConfigChanged() {

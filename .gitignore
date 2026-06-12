@@ -98,4 +98,6 @@ lint/tmp/
 
 *.hprof
 output-metadata.json
-`n# credentials`nagnes_vision_mcp.py
+# credentials
+agnes_vision_mcp.py
+build.bat
