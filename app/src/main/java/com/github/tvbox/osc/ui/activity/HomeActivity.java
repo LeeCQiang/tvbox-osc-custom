@@ -360,7 +360,11 @@ public class HomeActivity extends BaseActivity {
         }
         // 首次启动无配置时自动填入默认源
         if (Hawk.get(HawkConfig.API_URL, "").isEmpty()) {
-            Hawk.put(HawkConfig.API_URL, "https://ghproxy.net/https://raw.githubusercontent.com/LeeCQiang/tvbox/master/jsm.json");
+            Hawk.put(HawkConfig.API_URL, "https://ghproxy.net/https://raw.githubusercontent.com/LeeCQiang/tvbox/master/jsm_lite.json");
+        }
+        // 默认首页源设为顾我
+        if (Hawk.get(HawkConfig.HOME_API, "").isEmpty()) {
+            Hawk.put(HawkConfig.HOME_API, "顾我99");
         }
         // 冷启动优先用缓存，后台静默刷新
         boolean cacheFirst = !useCacheConfig;

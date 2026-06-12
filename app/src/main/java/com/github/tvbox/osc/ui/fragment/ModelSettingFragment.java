@@ -736,6 +736,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
 
         findViewById(R.id.llIjkCachePlay).setOnClickListener((view -> onClickIjkCachePlay(view)));
         findViewById(R.id.llClearCache).setOnClickListener((view -> onClickClearCache(view)));
+        findViewById(R.id.llCheckSource).setOnClickListener((view -> checkSources()));
     }
 
     void showCrashLogs() {
@@ -765,6 +766,53 @@ public class ModelSettingFragment extends BaseLazyFragment {
         } catch (Exception e) {
             Toast.makeText(mActivity, "读取失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    void checkSources() {
+        Toast.makeText(mActivity, "正在检测源状态，请稍候...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            java.util.List<com.github.tvbox.osc.bean.SourceBean> sources = com.github.tvbox.osc.api.ApiConfig.get().getSourceBeanList();
+            StringBuilder sb = new StringBuilder();
+            int ok = 0, fail = 0;
+            sb.append("共 ").append(sources.size()).append(" 个源\n\n");
+            for (com.github.tvbox.osc.bean.SourceBean s : sources) {
+                String api = s.getApi();
+                if (api == null || api.isEmpty()) {
+                    sb.append("⚠ ").append(s.getName()).append(" (无API)\n");
+                    continue;
+                }
+                // 尝试连接
+                String url = api;
+                if (!url.startsWith("http")) url = "http://" + url;
+                try {
+                    java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
+                    conn.setRequestMethod("GET");
+                    int code = conn.getResponseCode();
+                    conn.disconnect();
+                    if (code >= 200 && code < 500) {
+                        sb.append("✅ ").append(s.getName()).append("\n");
+                        ok++;
+                    } else {
+                        sb.append("❌ ").append(s.getName()).append(" (HTTP ").append(code).append(")\n");
+                        fail++;
+                    }
+                } catch (Exception e) {
+                    sb.append("❌ ").append(s.getName()).append(" (超时/拒绝)\n");
+                    fail++;
+                }
+            }
+            sb.append("\n✅ ").append(ok).append(" 个正常  ❌ ").append(fail).append(" 个异常");
+            String result = sb.toString();
+            mActivity.runOnUiThread(() -> {
+                new androidx.appcompat.app.AlertDialog.Builder(mActivity)
+                        .setTitle("源状态检测结果")
+                        .setMessage(result)
+                        .setPositiveButton("确定", null)
+                        .show();
+            });
+        }).start();
     }
 
     private void restartAppAfterConfigChanged() {
