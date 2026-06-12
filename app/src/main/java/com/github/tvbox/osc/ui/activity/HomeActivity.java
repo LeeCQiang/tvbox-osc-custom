@@ -364,7 +364,7 @@ public class HomeActivity extends BaseActivity {
         }
         // 默认首页源设为顾我
         if (Hawk.get(HawkConfig.HOME_API, "").isEmpty()) {
-            Hawk.put(HawkConfig.HOME_API, "顾我99");
+            Hawk.put(HawkConfig.HOME_API, "量子");
         }
         // 冷启动优先用缓存，后台静默刷新
         boolean cacheFirst = !useCacheConfig;
