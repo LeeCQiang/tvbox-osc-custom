@@ -50,5 +50,6 @@ public class HawkConfig {
     public static final String LIVE_WEB_HEADER = "live_web_header";
     public static final String DEFAULT_LOAD_LIVE = "DEFAULT_LOAD_LIVE";
     public static final String SEARCH_HISTORY = "search_history";
+    public static final String PLAY_SPEED = "play_speed"; // 全局播放倍速记忆
     public static boolean hotVodDelete;
 }

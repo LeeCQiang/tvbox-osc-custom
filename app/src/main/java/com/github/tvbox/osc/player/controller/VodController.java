@@ -417,6 +417,7 @@ public class VodController extends BaseController {
                     if (speed > 3)
                         speed = 0.5f;
                     mPlayerConfig.put("sp", speed);
+                    Hawk.put(HawkConfig.PLAY_SPEED, speed);
                     updatePlayerCfgView();
                     listener.updatePlayerCfg();
                     speed_old = speed;
@@ -432,6 +433,7 @@ public class VodController extends BaseController {
             public boolean onLongClick(View view) {
                 try {
                     mPlayerConfig.put("sp", 1.0f);
+                    Hawk.put(HawkConfig.PLAY_SPEED, 1.0f);
                     updatePlayerCfgView();
                     listener.updatePlayerCfg();
                     speed_old = 1.0f;

@@ -36,18 +36,19 @@ public class App extends MultiDexApplication {
     public static String burl;
     private static String dashData;
 
+    // 延迟初始化任务
+    private android.os.Handler delayHandler;
+
     @Override
     public void onCreate() {
         super.onCreate();
         instance = this;
+        delayHandler = new android.os.Handler(getMainLooper());
+        // 全局崩溃捕获
+        Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(this));
         initParams();
-        // OKGo
-        OkGoHelper.init(); //台标获取
-        EpgUtil.init();
-        // 初始化Web服务器
-        ControlManager.init(this);
-        //初始化数据库
-        AppDataManager.init();
+        // 必须立即初始化的
+        OkGoHelper.init();
         LoadSir.beginBuilder()
                 .addCallback(new EmptyCallback())
                 .addCallback(new LoadingCallback())
@@ -56,9 +57,29 @@ public class App extends MultiDexApplication {
                 .setSupportDP(false)
                 .setSupportSP(false)
                 .setSupportSubunits(Subunits.MM);
-        PlayerHelper.init();
-        QuickJSLoader.init();
-        FileUtils.cleanPlayerCache();
+        // 延迟非关键初始化（不影响首页显示）
+        delayHandler.postDelayed(() -> {
+            ControlManager.init(this);
+            AppDataManager.init();
+            PlayerHelper.init();
+            EpgUtil.init();
+            QuickJSLoader.init();
+            FileUtils.cleanPlayerCache();
+            // 自动清理7天前的缓存
+            try {
+                java.io.File cacheDir = new java.io.File(getFilesDir(), "cache");
+                if (cacheDir.exists()) {
+                    long now = System.currentTimeMillis();
+                    long weekMs = 7L * 24 * 60 * 60 * 1000;
+                    java.io.File[] files = cacheDir.listFiles();
+                    if (files != null) {
+                        for (java.io.File f : files) {
+                            if (now - f.lastModified() > weekMs) f.delete();
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }, 300);
     }
 
     private void initParams() {

@@ -56,6 +56,7 @@ public class ControlManager {
         if (mServer != null) {
             return;
         }
+        int maxPort = RemoteServer.serverPort + 3;
         do {
             mServer = new RemoteServer(RemoteServer.serverPort, mContext);
             mServer.setDataReceiver(new DataReceiver() {
@@ -89,9 +90,9 @@ public class ControlManager {
                 break;
             } catch (IOException ex) {
                 RemoteServer.serverPort++;
-                mServer.stop();
+                if (mServer != null) try { mServer.stop(); } catch (Exception ignored) {}
             }
-        } while (RemoteServer.serverPort < 9999);
+        } while (RemoteServer.serverPort < maxPort);
     }
 
     public void stopServer() {

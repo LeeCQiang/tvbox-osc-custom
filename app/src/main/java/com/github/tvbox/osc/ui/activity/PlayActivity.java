@@ -164,11 +164,32 @@ public class PlayActivity extends BaseActivity {
                         stopParse();
                         errorWithRetry("嗅探错误", false);
                         break;
+                    case 101:
+                        errorWithRetry("播放加载超时，正在切换线路", false);
+                        break;
                 }
                 return false;
             }
         });
         mVideoView = findViewById(R.id.mVideoView);
+        mVideoView.addOnStateChangeListener(new xyz.doikki.videoplayer.player.VideoView.OnStateChangeListener() {
+            @Override
+            public void onPlayStateChanged(int playState) {
+                if (playState == xyz.doikki.videoplayer.player.VideoView.STATE_PLAYING
+                        || playState == xyz.doikki.videoplayer.player.VideoView.STATE_ERROR
+                        || playState == xyz.doikki.videoplayer.player.VideoView.STATE_PREPARED) {
+                    mHandler.removeMessages(101);
+                }
+            }
+            @Override
+            public void onPlayerStateChanged(int playState) {
+                if (playState == xyz.doikki.videoplayer.player.VideoView.STATE_PLAYING
+                        || playState == xyz.doikki.videoplayer.player.VideoView.STATE_ERROR
+                        || playState == xyz.doikki.videoplayer.player.VideoView.STATE_PREPARED) {
+                    mHandler.removeMessages(101);
+                }
+            }
+        });
         mPlayLoadTip = findViewById(R.id.play_load_tip);
         mPlayLoading = findViewById(R.id.play_loading);
         mPlayLoadErr = findViewById(R.id.play_load_error);
@@ -524,6 +545,38 @@ public class PlayActivity extends BaseActivity {
 
     void playUrl(String url, HashMap<String, String> headers) {
         if(!url.startsWith("data:application"))EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_REFRESH, url));//更新播放地址
+        // 续播确认
+        if (autoRetryCount == 0) {
+            long saved = getSavedProgress(progressKey);
+            if (saved > 5000) {
+                final boolean[] decided = {false};
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        new androidx.appcompat.app.AlertDialog.Builder(PlayActivity.this)
+                                .setTitle("继续播放")
+                                .setMessage("检测到上次播放到 " + (saved / 1000 / 60) + "分" + ((saved / 1000) % 60) + "秒\n是否从断点处继续？")
+                                .setPositiveButton("继续播放", (dialog, which) -> {
+                                    decided[0] = true;
+                                    goPlayUrl(url, headers);
+                                })
+                                .setNegativeButton("从头播放", (dialog, which) -> {
+                                    decided[0] = true;
+                                    CacheManager.delete(MD5.string2MD5(progressKey), 0);
+                                    goPlayUrl(url, headers);
+                                })
+                                .setOnDismissListener(d -> {
+                                    if (!decided[0]) {
+                                        decided[0] = true;
+                                        goPlayUrl(url, headers);
+                                    }
+                                })
+                                .show();
+                    }
+                });
+                return;
+            }
+        }
         if (!Hawk.get(HawkConfig.M3U8_PURIFY, false)) {
             goPlayUrl(url,headers);
             return;
@@ -584,6 +637,8 @@ public class PlayActivity extends BaseActivity {
                             mVideoView.setUrl(url);
                         }
                         mVideoView.start();
+                        mHandler.removeMessages(101);
+                        mHandler.sendEmptyMessageDelayed(101, 45*1000);
                         mController.resetSpeed();
                     }
                 }
@@ -646,6 +701,7 @@ public class PlayActivity extends BaseActivity {
                 }
             }
         }
+
     }
 
     private void initViewModel() {
@@ -773,7 +829,7 @@ public class PlayActivity extends BaseActivity {
                 mVodPlayerCfg.put("sc", Hawk.get(HawkConfig.PLAY_SCALE, 0));
             }
             if (!mVodPlayerCfg.has("sp")) {
-                mVodPlayerCfg.put("sp", 1.0f);
+                mVodPlayerCfg.put("sp", Hawk.get(HawkConfig.PLAY_SPEED, 1.0f));
             }
             if (!mVodPlayerCfg.has("st")) {
                 mVodPlayerCfg.put("st", 0);

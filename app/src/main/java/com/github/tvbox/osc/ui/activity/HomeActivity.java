@@ -68,6 +68,7 @@ import org.greenrobot.eventbus.ThreadMode;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -357,7 +358,13 @@ public class HomeActivity extends BaseActivity {
             }
             return;
         }
-        ApiConfig.get().loadConfig(useCacheConfig, new ApiConfig.LoadConfigCallback() {
+        // 首次启动无配置时自动填入默认源
+        if (Hawk.get(HawkConfig.API_URL, "").isEmpty()) {
+            Hawk.put(HawkConfig.API_URL, "https://ghproxy.net/https://raw.githubusercontent.com/LeeCQiang/tvbox/master/jsm.json");
+        }
+        // 冷启动优先用缓存，后台静默刷新
+        boolean cacheFirst = !useCacheConfig;
+        ApiConfig.get().loadConfig(cacheFirst, new ApiConfig.LoadConfigCallback() {
             TipDialog dialog = null;
 
             @Override
@@ -396,6 +403,22 @@ public class HomeActivity extends BaseActivity {
                         }
                     });
                     return;
+                }
+                // 自动尝试历史配置
+                if (msg.contains("拉取配置失败")) {
+                    ArrayList<String> history = Hawk.get(HawkConfig.API_HISTORY, new ArrayList<String>());
+                    String currentUrl = Hawk.get(HawkConfig.API_URL, "");
+                    if (!history.isEmpty() && !history.get(0).equals(currentUrl)) {
+                        Hawk.put(HawkConfig.API_URL, history.get(0));
+                        mHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(HomeActivity.this, "当前配置不可用，切换至历史配置", Toast.LENGTH_SHORT).show();
+                                initData();
+                            }
+                        });
+                        return;
+                    }
                 }
                 mHandler.post(new Runnable() {
                     @Override
