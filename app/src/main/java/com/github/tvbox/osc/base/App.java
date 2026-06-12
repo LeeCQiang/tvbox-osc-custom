@@ -65,21 +65,32 @@ public class App extends MultiDexApplication {
             EpgUtil.init();
             QuickJSLoader.init();
             FileUtils.cleanPlayerCache();
-            // 自动清理7天前的缓存
-            try {
-                java.io.File cacheDir = new java.io.File(getFilesDir(), "cache");
-                if (cacheDir.exists()) {
-                    long now = System.currentTimeMillis();
-                    long weekMs = 7L * 24 * 60 * 60 * 1000;
-                    java.io.File[] files = cacheDir.listFiles();
-                    if (files != null) {
-                        for (java.io.File f : files) {
-                            if (now - f.lastModified() > weekMs) f.delete();
+            // 自动清理7天前的缓存（后台线程）
+            new Thread(() -> {
+                try {
+                    java.io.File cacheDir = new java.io.File(getFilesDir(), "cache");
+                    if (cacheDir.exists()) {
+                        long now = System.currentTimeMillis();
+                        long weekMs = 7L * 24 * 60 * 60 * 1000;
+                        java.io.File[] files = cacheDir.listFiles();
+                        if (files != null) {
+                            for (java.io.File f : files) {
+                                if (now - f.lastModified() > weekMs) f.delete();
+                            }
                         }
                     }
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }).start();
         }, 300);
+    }
+
+    @Override
+    public void onTerminate() {
+        super.onTerminate();
+        if (delayHandler != null) {
+            delayHandler.removeCallbacksAndMessages(null);
+        }
+        JsLoader.destroy();
     }
 
     private void initParams() {
@@ -95,11 +106,7 @@ public class App extends MultiDexApplication {
         return instance;
     }
 
-    @Override
-    public void onTerminate() {
-        super.onTerminate();
-        JsLoader.destroy();
-    }
+    // onTerminate moved to the onCreate section to avoid duplication
 
 
     private VodInfo vodInfo;

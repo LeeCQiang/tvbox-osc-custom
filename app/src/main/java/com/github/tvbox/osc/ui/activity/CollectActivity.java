@@ -212,7 +212,7 @@ public class CollectActivity extends BaseActivity {
                 arr.put(obj);
             }
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
-            File dir = new File(Environment.getExternalStorageDirectory(), "tvbox_backup");
+            File dir = new File(getExternalFilesDir(null), "tvbox_backup");
             if (!dir.exists()) dir.mkdirs();
             File file = new File(dir, "favorites_" + sdf.format(new Date()) + ".json");
             FileWriter fw = new FileWriter(file);
@@ -226,7 +226,7 @@ public class CollectActivity extends BaseActivity {
 
     private void importFavorites() {
         try {
-            File dir = new File(Environment.getExternalStorageDirectory(), "tvbox_backup");
+            File dir = new File(getExternalFilesDir(null), "tvbox_backup");
             if (!dir.exists() || !dir.isDirectory()) {
                 Toast.makeText(this, "未找到导出文件", Toast.LENGTH_SHORT).show();
                 return;

@@ -2,9 +2,8 @@ package com.github.tvbox.osc.base;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
 
 import com.github.tvbox.osc.util.LOG;
 
@@ -17,40 +16,44 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * 全局未捕获异常处理 — 崩溃日志写入文件 + 友好提示
+ * 全局未捕获异常处理 — 崩溃日志写入文件 + 友好提示 + 重启
  */
 public class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     private static final String CRASH_DIR = "crash_logs";
-    private static final String TAG = "CrashHandler";
 
     private Context context;
     private Thread.UncaughtExceptionHandler defaultHandler;
+    private Handler mainHandler;
 
     public CrashHandler(Context context) {
         this.context = context.getApplicationContext();
+        this.mainHandler = new Handler(Looper.getMainLooper());
         this.defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
     }
 
     @Override
-    public void uncaughtException(Thread thread, Throwable throwable) {
+    public void uncaughtException(final Thread thread, final Throwable throwable) {
         // 保存崩溃日志
-        String crashInfo = collectCrashInfo(thread, throwable);
-        saveCrashLog(crashInfo);
+        saveCrashLog(collectCrashInfo(thread, throwable));
 
-        // 显示友好提示 (在主线程)
+        // 先调用默认处理器（如果有）
+        if (defaultHandler != null) {
+            defaultHandler.uncaughtException(thread, throwable);
+        }
+
+        // 在主线程显示 Toast（不创建 Looper 线程）
+        mainHandler.post(() -> {
+            android.widget.Toast.makeText(context, "TVBox 遇到异常，即将重启", android.widget.Toast.LENGTH_LONG).show();
+        });
+
+        // 延迟后重启（在单独线程中执行）
         new Thread(() -> {
-            Looper.prepare();
-            Toast.makeText(context, "TVBox 遇到异常已重启", Toast.LENGTH_LONG).show();
-            Looper.loop();
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException ignored) {}
+            restartApp();
         }).start();
-
-        // 延迟后重启APP
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException ignored) {}
-
-        restartApp();
     }
 
     private String collectCrashInfo(Thread thread, Throwable throwable) {
@@ -66,7 +69,6 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         pw.println();
         throwable.printStackTrace(pw);
         pw.println();
-        pw.println("═══════════════════════ Caused by ═══════════════════");
         Throwable cause = throwable.getCause();
         while (cause != null) {
             cause.printStackTrace(pw);
@@ -90,9 +92,9 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
             fos.write(crashInfo.getBytes("UTF-8"));
             fos.close();
 
-            LOG.e(TAG + ": crash log saved → " + file.getAbsolutePath());
+            LOG.e("CrashHandler: crash log saved → " + file.getAbsolutePath());
         } catch (Exception e) {
-            LOG.e(TAG + ": failed to save crash log: " + e.getMessage());
+            LOG.e("CrashHandler: failed to save crash log: " + e.getMessage());
         }
     }
 
@@ -105,7 +107,7 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
                 context.startActivity(intent);
             }
         } catch (Exception e) {
-            LOG.e(TAG + ": restart failed: " + e.getMessage());
+            LOG.e("CrashHandler: restart failed: " + e.getMessage());
         }
         android.os.Process.killProcess(android.os.Process.myPid());
         System.exit(1);
